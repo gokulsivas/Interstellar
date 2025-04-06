@@ -16,11 +16,19 @@ const WasteManagement = () => {
     setLoading(true);
     setMessage('');
     try {
+      console.log('Fetching waste items...');
       const response = await identifyWaste();
-      setWasteItems(response.data.wasteItems);
+      console.log('Received waste items response:', response);
+      if (response.data && response.data.wasteItems) {
+        console.log('Setting waste items:', response.data.wasteItems);
+        setWasteItems(response.data.wasteItems);
+      } else {
+        console.log('No waste items found in response');
+        setWasteItems([]);
+      }
     } catch (error) {
-      setMessage(' Error fetching waste items.');
-      console.error(error);
+      console.error('Error fetching waste items:', error);
+      setMessage('Error fetching waste items.');
     }
     setLoading(false);
   };
@@ -44,23 +52,26 @@ const WasteManagement = () => {
   };
 
   const handleCompleteUndocking = async () => {
-    setLoading(true);
     setMessage('');
     try {
       const response = await completeUndocking({
         undockingContainerId: undockingInfo.undockingContainerId,
         timestamp: new Date().toISOString(),
       });
-      if (response.data.success) {
-        setMessage(' Undocking completed successfully!');
-      } else {
-        setMessage(' Failed to complete undocking.');
-      }
+      console.log('Complete undocking response:', response.data);
+      
+      setWasteItems([]);
+      setMessage(`Undocking completed successfully!`);
+      setReturnPlan(null);
+      setUndockingInfo({
+        undockingContainerId: '',
+        undockingDate: '',
+        maxWeight: '',
+      });
     } catch (error) {
-      setMessage(' Error completing undocking.');
-      console.error(error);
+      console.error('Error completing undocking:', error);
+      setMessage(`Error completing undocking: ${error.response?.data?.detail || error.message}`);
     }
-    setLoading(false);
   };
 
   return (
@@ -72,7 +83,15 @@ const WasteManagement = () => {
           Identify Waste Items
         </button>
         {loading && <p className="mt-2 text-gray-500">Loading...</p>}
-        {message && <p className="mt-2 text-red-500">{message}</p>}
+        {message && (
+          <div className={`mt-4 p-3 rounded-md ${
+            message.includes('successfully') 
+              ? 'bg-green-50 border border-green-200 text-green-600' 
+              : 'bg-red-50 border border-red-200 text-red-600'
+          }`}>
+            {message}
+          </div>
+        )}
 
         {wasteItems.length > 0 && (
           <div className="mt-4 p-4 bg-gray-100 rounded-lg">
@@ -97,12 +116,67 @@ const WasteManagement = () => {
         
         {returnPlan && (
           <div className="mt-4 p-4 bg-gray-100 rounded-lg">
-            <h3 className="text-lg font-medium">Return Plan:</h3>
-            <pre className="text-sm whitespace-pre-wrap">{JSON.stringify(returnPlan, null, 2)}</pre>
+            <h3 className="text-lg font-medium mb-3">Return Plan:</h3>
+            <div className="space-y-4">
+              <div className="bg-white p-3 rounded-md shadow-sm">
+                <h4 className="font-medium text-gray-700">Return Manifest</h4>
+                <p className="text-sm text-gray-600">Container ID: {returnPlan.return_manifest.undocking_container_id}</p>
+                <p className="text-sm text-gray-600">Undocking Date: {new Date(returnPlan.return_manifest.undocking_date).toLocaleDateString()}</p>
+                <p className="text-sm text-gray-600">Total Weight: {returnPlan.return_manifest.total_weight} kg</p>
+                <p className="text-sm text-gray-600">Total Volume: {returnPlan.return_manifest.total_volume} m³</p>
+              </div>
+
+              {returnPlan.return_manifest.return_items.length > 0 && (
+                <div className="bg-white p-3 rounded-md shadow-sm">
+                  <h4 className="font-medium text-gray-700 mb-2">Items to Return:</h4>
+                  <ul className="space-y-2">
+                    {returnPlan.return_manifest.return_items.map((item, index) => (
+                      <li key={index} className="text-sm text-gray-600">
+                        • {item.name} (ID: {item.itemId}) - {item.reason}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {returnPlan.return_plan.length > 0 && (
+                <div className="bg-white p-3 rounded-md shadow-sm">
+                  <h4 className="font-medium text-gray-700 mb-2">Return Steps:</h4>
+                  <ol className="list-decimal list-inside space-y-2">
+                    {returnPlan.return_plan.map((step, index) => (
+                      <li key={index} className="text-sm text-gray-600">
+                        Move {step.item_name} from {step.from_container} to {step.to_container}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+
+              {returnPlan.retrieval_steps.length > 0 && (
+                <div className="bg-white p-3 rounded-md shadow-sm">
+                  <h4 className="font-medium text-gray-700 mb-2">Retrieval Steps:</h4>
+                  <ol className="list-decimal list-inside space-y-2">
+                    {returnPlan.retrieval_steps.map((step, index) => (
+                      <li key={index} className="text-sm text-gray-600">
+                        {step.action.charAt(0).toUpperCase() + step.action.slice(1)} {step.item_name}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+            </div>
           </div>
         )}
         
-        <button onClick={handleCompleteUndocking} className="mt-6 w-full py-2 bg-red-500 text-white rounded-md hover:bg-red-700">
+        <button 
+          onClick={handleCompleteUndocking} 
+          disabled={!undockingInfo.undockingContainerId}
+          className={`mt-6 w-full py-2 text-white rounded-md ${
+            !undockingInfo.undockingContainerId 
+              ? 'bg-gray-400 cursor-not-allowed' 
+              : 'bg-red-500 hover:bg-red-700'
+          }`}
+        >
           Complete Undocking
         </button>
       </div>

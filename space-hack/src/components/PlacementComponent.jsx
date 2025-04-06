@@ -17,22 +17,22 @@ const PlacementComponent = () => {
             // Format data to match FrontendPlacementInput schema
             const formattedInputData = {
                 items: inputData.items.map(item => ({
-                    itemId: item.item_id || '',
-                    name: item.name || '',
-                    width: parseFloat(item.width_cm) || 0,
-                    depth: parseFloat(item.depth_cm) || 0,
-                    height: parseFloat(item.height_cm) || 0,
-                    priority: parseInt(item.priority) || 0,
-                    expiryDate: item.expiry_date || '',
-                    usageLimit: parseInt(item.usage_limit) || 0,
-                    preferredZone: item.preferred_zone || ''
+                    itemId: parseInt(item.itemId),
+                    name: item.name,
+                    width: parseFloat(item.width),
+                    depth: parseFloat(item.depth),
+                    height: parseFloat(item.height),
+                    priority: parseInt(item.priority),
+                    expiryDate: item.expiryDate || '',
+                    usageLimit: parseInt(item.usageLimit),
+                    preferredZone: item.preferredZone
                 })),
                 containers: inputData.containers.map(container => ({
-                    container_id: container.container_id || '',
-                    zone: container.zone || '',
-                    width_cm: parseFloat(container.width_cm) || 0,
-                    depth_cm: parseFloat(container.depth_cm) || 0,
-                    height_cm: parseFloat(container.height_cm) || 0
+                    containerId: container.containerId,
+                    zone: container.zone,
+                    width: parseFloat(container.width),
+                    depth: parseFloat(container.depth),
+                    height: parseFloat(container.height)
                 }))
             };
 
@@ -145,6 +145,12 @@ const PlacementComponent = () => {
             {error && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-md whitespace-pre-wrap">
                     {error}
+                </div>
+            )}
+
+            {placementData && placementData.success && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-600 rounded-md">
+                    Placement successful! Generated {placementData.placements.length} placement(s).
                 </div>
             )}
 

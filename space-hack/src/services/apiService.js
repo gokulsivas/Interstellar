@@ -13,25 +13,26 @@ export const getPlacementRecommendations = async (data) => {
     // Ensure data matches FrontendPlacementInput schema
     const transformedData = {
       items: data.items.map(item => ({
-        itemId: item.itemId,
+        itemId: parseInt(item.itemId),
         name: item.name,
-        width: item.width,
-        depth: item.depth,
-        height: item.height,
-        priority: item.priority,
-        expiryDate: item.expiryDate,
-        usageLimit: item.usageLimit,
+        width: parseFloat(item.width),
+        depth: parseFloat(item.depth),
+        height: parseFloat(item.height),
+        priority: parseInt(item.priority),
+        expiryDate: item.expiryDate || "",
+        usageLimit: parseInt(item.usageLimit),
         preferredZone: item.preferredZone
       })),
       containers: data.containers.map(container => ({
-        container_id: container.container_id,
+        containerId: container.containerId || container.zone,
         zone: container.zone,
-        width_cm: container.width_cm,
-        depth_cm: container.depth_cm,
-        height_cm: container.height_cm
+        width: parseFloat(container.width),
+        depth: parseFloat(container.depth),
+        height: parseFloat(container.height)
       }))
     };
 
+    console.log('Transformed data:', transformedData);
     const response = await api.post('/placement', transformedData);
 
     // Ensure response matches expected format
@@ -67,11 +68,45 @@ export const searchItem = async (params) => {
 };
 
 export const retrieveItem = async (data) => {
-  return api.post('/retrieve', {
-    itemId: parseInt(data.itemId),
-    userId: data.userId,
-    timestamp: data.timestamp
-  });
+  try {
+    // Ensure itemId is provided and is a valid number
+    if (!data.itemId) {
+      throw new Error('Item ID is required');
+    }
+
+    const requestData = {
+      itemId: parseInt(data.itemId),
+      timestamp: data.timestamp || new Date().toISOString()
+    };
+
+    // Only add userId if it's provided and not empty
+    if (data.userId && data.userId.trim()) {
+      requestData.userId = data.userId.trim();
+    }
+
+    const response = await api.post('/retrieve', requestData);
+    console.log('Retrieve API Response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Retrieve API Error:', error.response?.data || error);
+    // Format validation errors
+    if (error.response?.data?.detail) {
+      const detail = error.response.data.detail;
+      if (Array.isArray(detail)) {
+        const errorMsg = detail.map(err => {
+          const field = err.loc[err.loc.length - 1];
+          return `${field}: ${err.msg}`;
+        }).join(', ');
+        throw new Error(errorMsg);
+      } else if (typeof detail === 'object' && detail.loc) {
+        const field = detail.loc[detail.loc.length - 1];
+        throw new Error(`${field}: ${detail.msg}`);
+      } else {
+        throw new Error(detail.toString());
+      }
+    }
+    throw error;
+  }
 };
 
 export const placeItem = async (data) => {
@@ -92,42 +127,29 @@ export const returnWastePlan = async (data) => {
 };
 
 export const completeUndocking = async (data) => {
-  return api.post('/waste/complete-undocking', {
-    undocking_container_id: data.undockingContainerId,
-    timestamp: data.timestamp
-  });
+  try {
+    const response = await api.post('/waste/complete-undocking', {
+      undocking_container_id: data.undockingContainerId,
+      timestamp: data.timestamp
+    });
+    console.log('Complete undocking API response:', response.data);
+    return response;
+  } catch (error) {
+    console.error('Complete undocking API error:', error.response?.data || error);
+    throw error;
+  }
 };
 
 // Time Simulation API
-export const simulateDays = async (simulationParams) => {
+export const simulateDays = async (data) => {
   try {
-    // Transform the parameters to match backend schema
-    const requestBody = {
-      numOfDays: simulationParams.numOfDays,
-      toTimestamp: simulationParams.toTimestamp,
-      itemsToBeUsedPerDay: simulationParams.itemsToBeUsedPerDay.map(item => {
-        // Only include item_id or name, not both
-        const itemParams = {};
-        if (item.itemId) {
-          itemParams.item_id = parseInt(item.itemId);
-        } else if (item.name) {
-          itemParams.name = item.name;
-        }
-        return itemParams;
-      })
-    };
-
-    const response = await fetch(`${API_BASE_URL}/simulate/day`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
-    const data = await response.json();
-    return data;
+    // The data is already in the correct format, just pass it through
+    console.log('Sending request with body:', JSON.stringify(data, null, 2));
+    const response = await api.post('/simulate/day', data);
+    console.log('Simulation API Response:', response.data);
+    return response.data;
   } catch (error) {
-    console.error('API Error:', error);
+    console.error('Simulation API Error:', error.response?.data || error);
     throw error;
   }
 };
@@ -217,7 +239,23 @@ export const getLogs = async (startDate, endDate, filters = {}) => {
 };
 
 export const clearLogs = async () => {
-  return api.post('/logs/clear');
+  try {
+    const response = await api.post('/logs/clear');
+    return response.data;
+  } catch (error) {
+    console.error('API Error:', error);
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      throw new Error(error.response.data.detail || 'Failed to clear logs');
+    } else if (error.request) {
+      // The request was made but no response was received
+      throw new Error('No response received from server');
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      throw new Error('Error setting up the request');
+    }
+  }
 };
 
 // Container 3D Visualization APIs

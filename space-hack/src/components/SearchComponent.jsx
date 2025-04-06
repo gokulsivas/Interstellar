@@ -39,6 +39,8 @@ const SearchComponent = () => {
 
       if (response.data && response.data.found) {
         setSearchResult(response.data);
+        console.log('Search result item:', response.data.item);
+        console.log('Position data:', response.data.item.position);
       } else {
         // Handle specific error messages from the backend
         if (response.data?.message) {
@@ -162,7 +164,7 @@ const SearchComponent = () => {
             <h3 className="text-lg font-semibold mb-3">Item Details</h3>
             <div className="space-y-2">
               <p><strong>Name:</strong> {searchResult.item.name}</p>
-              <p><strong>Container:</strong> {searchResult.item.container_id}</p>
+              <p><strong>Container ID:</strong> {searchResult.item.containerId}</p>
               <p><strong>Zone:</strong> {searchResult.item.zone}</p>
 
               <div className="mt-2">
@@ -170,15 +172,15 @@ const SearchComponent = () => {
                 <div className="mt-2">
                   <p><strong>Start:</strong></p>
                   <p className="ml-4">
-                    Width: {searchResult.item.position.startCoordinates.width_cm}cm,{' '}
-                    Depth: {searchResult.item.position.startCoordinates.depth_cm}cm,{' '}
-                    Height: {searchResult.item.position.startCoordinates.height_cm}cm
+                    Width: {searchResult.item.position.startCoordinates.width}cm,{' '}
+                    Depth: {searchResult.item.position.startCoordinates.depth}cm,{' '}
+                    Height: {searchResult.item.position.startCoordinates.height}cm
                   </p>
                   <p className="mt-1"><strong>End:</strong></p>
                   <p className="ml-4">
-                    Width: {searchResult.item.position.endCoordinates.width_cm}cm,{' '}
-                    Depth: {searchResult.item.position.endCoordinates.depth_cm}cm,{' '}
-                    Height: {searchResult.item.position.endCoordinates.height_cm}cm
+                    Width: {searchResult.item.position.endCoordinates.width}cm,{' '}
+                    Depth: {searchResult.item.position.endCoordinates.depth}cm,{' '}
+                    Height: {searchResult.item.position.endCoordinates.height}cm
                   </p>
                 </div>
               </div>
