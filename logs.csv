@@ -1,0 +1,7 @@
+timestamp,userId,action_type,itemId,details
+2025-04-06T22:05:10.883482+00:00,"",Import Containers,0,"{""from_container"": """", ""to_container"": """", ""reason"": ""Imported 56 containers successfully.""}"
+2025-04-06T22:05:20.781894+00:00,"",Import Items,0,"{""from_container"": """", ""to_container"": """", ""reason"": ""Imported 2000 items successfully.""}"
+2025-04-06T22:05:24.120490+00:00,"",Export Arrangement,0,"{""from_container"": """", ""to_container"": """", ""reason"": ""Exported 2000 placements successfully""}"
+2025-04-06T22:08:27.092295+00:00,"",Import Items,0,"{""from_container"": """", ""to_container"": """", ""reason"": ""Imported 2000 items successfully.""}"
+2025-04-06T22:08:31.623306+00:00,"",Import Containers,0,"{""from_container"": """", ""to_container"": """", ""reason"": ""Imported 56 containers successfully.""}"
+2025-04-06T22:08:33.083347+00:00,"",Export Arrangement,0,"{""from_container"": """", ""to_container"": """", ""reason"": ""Exported 4000 placements successfully""}"
