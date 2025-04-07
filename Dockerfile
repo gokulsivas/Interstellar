@@ -31,6 +31,7 @@ COPY requirements.txt ./
 
 # Install dependencies
 RUN npm install --legacy-peer-deps && \
+    npm install cors --legacy-peer-deps && \
     pip3 install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code
