@@ -17,8 +17,12 @@ const SimulationComponent = () => {
     setFormData(prev => ({
       ...prev,
       [name]: value,
-      ...(name === 'itemId' ? { itemName: '' } : {}),
-      ...(name === 'itemName' ? { itemId: '' } : {})
+      // Handle Item ID and Item Name mutual exclusivity
+      ...(name === 'itemId' && value !== '' ? { itemName: '' } : {}),
+      ...(name === 'itemName' && value !== '' ? { itemId: '' } : {}),
+      // Handle Number of Days and Target Date/Time mutual exclusivity
+      ...(name === 'numOfDays' && value !== '' ? { toTimestamp: '' } : {}),
+      ...(name === 'toTimestamp' && value !== '' ? { numOfDays: '' } : {})
     }));
   };
 
@@ -33,29 +37,42 @@ const SimulationComponent = () => {
     setSimulationResults(null);
 
     try {
-      if (!formData.numOfDays) {
-        setMessage('Number of days is required');
+      // Check if either days or target date is provided
+      if (!formData.numOfDays && !formData.toTimestamp) {
+        setMessage('Either Number of Days or Target Date/Time is required');
+        setLoading(false);
         return;
       }
 
+      // Check if either item ID or name is provided
       if (!formData.itemId && !formData.itemName) {
         setMessage('Either Item ID or Item Name is required');
-        return;
-      }
-
-      if (formData.itemId && formData.itemName) {
-        setMessage('Please provide either Item ID or Item Name, not both');
+        setLoading(false);
         return;
       }
 
       // Format the request data properly
       const requestData = {
-        numOfDays: parseInt(formData.numOfDays),
-        toTimestamp: formData.toTimestamp || undefined,
-        itemsToBeUsedPerDay: [{
-          itemId: formData.itemId.toString()
-        }]
+        itemsToBeUsedPerDay: []
       };
+
+      // Create item usage object based on which field was provided
+      const itemUsage = {};
+      
+      if (formData.itemId) {
+        itemUsage.itemId = formData.itemId.toString();
+      } else if (formData.itemName) {
+        itemUsage.name = formData.itemName.trim();
+      }
+      
+      requestData.itemsToBeUsedPerDay.push(itemUsage);
+
+      // Add either numOfDays or toTimestamp, but not both
+      if (formData.numOfDays) {
+        requestData.numOfDays = parseInt(formData.numOfDays);
+      } else if (formData.toTimestamp) {
+        requestData.toTimestamp = formData.toTimestamp;
+      }
 
       console.log('Sending simulation request:', requestData);
       const response = await simulateDays(requestData);
@@ -71,7 +88,7 @@ const SimulationComponent = () => {
           itemName: ''
         });
       } else {
-        setMessage('Simulation failed');
+        setMessage(response.error || 'Simulation failed');
       }
     } catch (error) {
       console.error('Simulation error:', error);
@@ -79,6 +96,84 @@ const SimulationComponent = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Function to get summarized item data
+  const getSummarizedItemData = () => {
+    if (!simulationResults || !simulationResults.changes) return [];
+    
+    // Create a map to aggregate items by name
+    const itemsMap = new Map();
+    
+    // Filter out depleted items
+    const nonDepletedItems = simulationResults.changes.itemsUsed.filter(
+      item => !simulationResults.changes.itemsDepletedToday.some(
+        depleted => depleted.itemId === item.itemId
+      )
+    );
+    
+    // Count unique items by name
+    nonDepletedItems.forEach(item => {
+      if (!itemsMap.has(item.name)) {
+        itemsMap.set(item.name, {
+          name: item.name,
+          count: 1,
+          totalRemainingUses: item.remainingUses,
+          minRemainingUses: item.remainingUses,
+          maxRemainingUses: item.remainingUses,
+          // Only store sample item ID if needed for reference
+          sampleItemId: item.itemId
+        });
+      } else {
+        const existing = itemsMap.get(item.name);
+        existing.count++;
+        existing.totalRemainingUses += item.remainingUses;
+        existing.minRemainingUses = Math.min(existing.minRemainingUses, item.remainingUses);
+        existing.maxRemainingUses = Math.max(existing.maxRemainingUses, item.remainingUses);
+      }
+    });
+    
+    return Array.from(itemsMap.values());
+  };
+
+  // Function to get summarized expired items
+  const getSummarizedExpiredItems = () => {
+    if (!simulationResults || !simulationResults.changes) return [];
+    
+    const itemsMap = new Map();
+    simulationResults.changes.itemsExpired.forEach(item => {
+      if (!itemsMap.has(item.name)) {
+        itemsMap.set(item.name, {
+          name: item.name,
+          count: 1,
+          sampleItemId: item.itemId
+        });
+      } else {
+        itemsMap.get(item.name).count++;
+      }
+    });
+    
+    return Array.from(itemsMap.values());
+  };
+
+  // Function to get summarized depleted items
+  const getSummarizedDepletedItems = () => {
+    if (!simulationResults || !simulationResults.changes) return [];
+    
+    const itemsMap = new Map();
+    simulationResults.changes.itemsDepletedToday.forEach(item => {
+      if (!itemsMap.has(item.name)) {
+        itemsMap.set(item.name, {
+          name: item.name,
+          count: 1,
+          sampleItemId: item.itemId
+        });
+      } else {
+        itemsMap.get(item.name).count++;
+      }
+    });
+    
+    return Array.from(itemsMap.values());
   };
 
   return (
@@ -99,6 +194,7 @@ const SimulationComponent = () => {
               placeholder="Enter number of days"
               className="w-full border p-2 rounded-md"
               min="1"
+              disabled={formData.toTimestamp !== ''}
             />
           </div>
 
@@ -112,6 +208,7 @@ const SimulationComponent = () => {
               value={formData.toTimestamp}
               onChange={handleInputChange}
               className="w-full border p-2 rounded-md"
+              disabled={formData.numOfDays !== ''}
             />
           </div>
         </div>
@@ -178,22 +275,25 @@ const SimulationComponent = () => {
         <div className="mt-6 space-y-4 text-sm">
           <div className="bg-blue-50 p-4 rounded-md">
             <p className="text-blue-700 font-medium">
-              Simulation Date: {formatDate(simulationResults.newDate)}
+              Final Simulation Date: {formatDate(simulationResults.newDate)}
             </p>
           </div>
 
-          {simulationResults.changes.itemsUsed.length > 0 && (
+          {getSummarizedItemData().length > 0 && (
             <div className="bg-gray-50 p-4 rounded-md">
-              <h4 className="font-medium mb-2">Items Used:</h4>
+              <h4 className="font-medium mb-2">Items Status After Simulation:</h4>
               <ul className="list-disc pl-5 space-y-2">
-                {simulationResults.changes.itemsUsed.map((item, index) => (
+                {getSummarizedItemData().map((item, index) => (
                   <li key={`used-${index}`}>
                     <span className="font-medium">
-                      {item.name} (ID: {item.itemId})
+                      {item.name}
                     </span>
                     <br />
                     <span className="text-gray-600">
-                      Remaining Uses: {item.remainingUses}
+                      {item.count > 1 
+                        ? `${item.count} items with average of ${Math.round(item.totalRemainingUses / item.count)} uses left (range: ${item.minRemainingUses}-${item.maxRemainingUses})`
+                        : `Remaining Uses: ${item.totalRemainingUses}`
+                      }
                     </span>
                   </li>
                 ))}
@@ -201,35 +301,35 @@ const SimulationComponent = () => {
             </div>
           )}
 
-          {simulationResults.changes.itemsExpired.length > 0 && (
+          {getSummarizedExpiredItems().length > 0 && (
             <div className="bg-yellow-50 p-4 rounded-md">
               <h4 className="font-medium mb-2 text-yellow-800">Expired Items:</h4>
               <ul className="list-disc pl-5 space-y-2">
-                {simulationResults.changes.itemsExpired.map((item, index) => (
+                {getSummarizedExpiredItems().map((item, index) => (
                   <li key={`expired-${index}`} className="text-yellow-800">
-                    {item.name} (ID: {item.itemId})
+                    {item.name} {item.count > 1 ? `(${item.count} items)` : ''}
                   </li>
                 ))}
               </ul>
             </div>
           )}
 
-          {simulationResults.changes.itemsDepletedToday.length > 0 && (
+          {getSummarizedDepletedItems().length > 0 && (
             <div className="bg-red-50 p-4 rounded-md">
-              <h4 className="font-medium mb-2 text-red-800">Items Depleted Today:</h4>
+              <h4 className="font-medium mb-2 text-red-800">Depleted Items:</h4>
               <ul className="list-disc pl-5 space-y-2">
-                {simulationResults.changes.itemsDepletedToday.map((item, index) => (
+                {getSummarizedDepletedItems().map((item, index) => (
                   <li key={`depleted-${index}`} className="text-red-800">
-                    {item.name} (ID: {item.itemId})
+                    {item.name} {item.count > 1 ? `(${item.count} items)` : ''}
                   </li>
                 ))}
               </ul>
             </div>
           )}
 
-          {simulationResults.changes.itemsUsed.length === 0 &&
-           simulationResults.changes.itemsExpired.length === 0 &&
-           simulationResults.changes.itemsDepletedToday.length === 0 && (
+          {getSummarizedItemData().length === 0 &&
+           getSummarizedExpiredItems().length === 0 &&
+           getSummarizedDepletedItems().length === 0 && (
             <div className="bg-gray-50 p-4 rounded-md">
               <p className="text-gray-600">No changes to report for this simulation.</p>
             </div>

@@ -12,7 +12,7 @@ import {
   Legend,
 } from 'chart.js';
 import { Line, Bar, Pie } from 'react-chartjs-2';
-import { api } from '../../services/apiService';
+import { getDashboardStats } from '../services/apiService';
 
 // Register ChartJS components
 ChartJS.register(
@@ -40,10 +40,12 @@ const Dashboard = () => {
         setLoading(true);
         setError(null);
         console.log('Fetching dashboard data...');
-        const response = await api.get('/api/dashboard/stats');
-        console.log('Dashboard data:', response.data);
-        if (response.data) {
-          processData(response.data);
+        const data = await getDashboardStats();
+        console.log('Dashboard data:', data);
+        if (data && data.success) {
+          processData(data);
+        } else {
+          throw new Error(data.error || 'Failed to load dashboard data');
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -54,6 +56,10 @@ const Dashboard = () => {
     };
 
     fetchDashboardData();
+
+    // Refresh data every 5 minutes
+    const interval = setInterval(fetchDashboardData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const processData = (data) => {
@@ -69,10 +75,10 @@ const Dashboard = () => {
           data.expired || 0
         ],
         backgroundColor: [
-          'rgba(54, 162, 235, 0.8)',
-          'rgba(255, 206, 86, 0.8)',
-          'rgba(75, 192, 192, 0.8)',
-          'rgba(255, 99, 132, 0.8)'
+          'rgba(54, 162, 235, 0.8)',   // Blue for storage
+          'rgba(255, 206, 86, 0.8)',   // Yellow for transit
+          'rgba(75, 192, 192, 0.8)',   // Green for retrieved
+          'rgba(255, 99, 132, 0.8)'    // Red for expired
         ],
         borderColor: [
           'rgba(54, 162, 235, 1)',
@@ -85,8 +91,10 @@ const Dashboard = () => {
     });
 
     // Process monthly arrivals
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                   'July', 'August', 'September', 'October', 'November', 'December'];
     setMonthlyArrivals({
-      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+      labels: months,
       datasets: [{
         label: 'Cargo Count',
         data: data.monthlyArrivals || Array(12).fill(0),
@@ -100,37 +108,48 @@ const Dashboard = () => {
     setWeightTrends({
       labels: data.weightTrends?.labels || [],
       datasets: [{
-        label: 'Total Weight (kg)',
+        label: 'Total Mass (kg)',
         data: data.weightTrends?.data || [],
         borderColor: 'rgb(255, 159, 64)',
         backgroundColor: 'rgba(255, 159, 64, 0.5)',
-        tension: 0.4
+        tension: 0.4,
+        fill: true
       }]
     });
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-lg text-gray-600">Loading dashboard data...</div>
+      <div className="flex items-center justify-center min-h-[600px]">
+        <div className="text-lg text-gray-600">
+          <svg className="animate-spin h-8 w-8 mr-3 inline" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          Loading dashboard data...
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-lg text-red-600">Error: {error}</div>
+      <div className="flex items-center justify-center min-h-[600px]">
+        <div className="text-lg text-red-600 bg-red-50 p-4 rounded-lg border border-red-200">
+          {error}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
+      <h1 className="text-2xl font-bold text-gray-800 mb-8">Cargo Dashboard</h1>
+      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Cargo Status Distribution */}
         <div className="bg-white p-6 rounded-lg shadow-lg">
-          <h2 className="text-xl font-semibold mb-4">Cargo Status Distribution</h2>
+          <h2 className="text-xl font-semibold mb-4 text-gray-700">Cargo Status Distribution</h2>
           {cargoStatus && (
             <div className="h-[300px] relative">
               <Pie
@@ -140,7 +159,22 @@ const Dashboard = () => {
                   maintainAspectRatio: false,
                   plugins: {
                     legend: {
-                      position: 'bottom'
+                      position: 'bottom',
+                      labels: {
+                        padding: 20,
+                        usePointStyle: true
+                      }
+                    },
+                    tooltip: {
+                      callbacks: {
+                        label: (context) => {
+                          const label = context.label || '';
+                          const value = context.raw || 0;
+                          const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                          const percentage = total ? Math.round((value / total) * 100) : 0;
+                          return `${label}: ${value} (${percentage}%)`;
+                        }
+                      }
                     }
                   }
                 }}
@@ -151,7 +185,7 @@ const Dashboard = () => {
 
         {/* Monthly Cargo Arrivals */}
         <div className="bg-white p-6 rounded-lg shadow-lg">
-          <h2 className="text-xl font-semibold mb-4">Monthly Cargo Arrivals</h2>
+          <h2 className="text-xl font-semibold mb-4 text-gray-700">Monthly Cargo Arrivals</h2>
           {monthlyArrivals && (
             <div className="h-[300px] relative">
               <Bar
@@ -162,11 +196,19 @@ const Dashboard = () => {
                   plugins: {
                     legend: {
                       display: false
+                    },
+                    tooltip: {
+                      callbacks: {
+                        label: (context) => `Count: ${context.raw}`
+                      }
                     }
                   },
                   scales: {
                     y: {
-                      beginAtZero: true
+                      beginAtZero: true,
+                      ticks: {
+                        precision: 0
+                      }
                     }
                   }
                 }}
@@ -178,7 +220,7 @@ const Dashboard = () => {
 
       {/* Cargo Weight Trends */}
       <div className="bg-white p-6 rounded-lg shadow-lg">
-        <h2 className="text-xl font-semibold mb-4">Cargo Weight Trends</h2>
+        <h2 className="text-xl font-semibold mb-4 text-gray-700">Cargo Mass Trends</h2>
         {weightTrends && (
           <div className="h-[300px] relative">
             <Line
@@ -189,11 +231,26 @@ const Dashboard = () => {
                 plugins: {
                   legend: {
                     display: false
+                  },
+                  tooltip: {
+                    callbacks: {
+                      label: (context) => `Mass: ${context.raw.toFixed(2)} kg`
+                    }
                   }
                 },
                 scales: {
                   y: {
-                    beginAtZero: true
+                    beginAtZero: true,
+                    title: {
+                      display: true,
+                      text: 'Total Mass (kg)'
+                    }
+                  },
+                  x: {
+                    title: {
+                      display: true,
+                      text: 'Date'
+                    }
                   }
                 }
               }}

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import import_export, placement, search_retrieve, waste, time_simulation, logs
+from routers import import_export, placement, search_retrieve, waste, time_simulation, logs, dashboard, visualization
 
 app = FastAPI(
     title="Cargo Management API",
@@ -23,6 +23,8 @@ app.include_router(placement.router)
 app.include_router(search_retrieve.router)
 app.include_router(waste.router)
 app.include_router(time_simulation.router)
+app.include_router(dashboard.router)
+app.include_router(visualization.router)
 
 
 # Root endpoint

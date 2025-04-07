@@ -1,3 +1,19 @@
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import List, Dict, Optional, Any, Union
+from datetime import datetime
+import polars as pl
+from fastapi.responses import JSONResponse
+
+router = APIRouter()
+
+class ItemUsage(BaseModel):
+    itemId: Union[int, str]
+    usageCount: int = 1
+
+class TimeSimulationRequest(BaseModel):
+    itemsToBeUsedPerDay: Optional[List[Dict[str, Any]]] = None
+
 @router.post("/simulate/day")
 async def simulate_day(request: TimeSimulationRequest):
     """Simulate the passage of a day and update item states."""
@@ -83,4 +99,4 @@ async def simulate_day(request: TimeSimulationRequest):
         print(f"Error type: {type(e)}")
         import traceback
         print(f"Traceback: {traceback.format_exc()}")
-        return {"success": False, "error": str(e)} 
+        return {"success": False, "error": str(e)}

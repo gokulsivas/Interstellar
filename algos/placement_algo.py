@@ -29,6 +29,7 @@ class ItemDimensions:
     width: float
     depth: float
     height: float
+    mass: float
     priority: int
     itemId: Optional[Union[str, int]] = None
 
@@ -353,44 +354,20 @@ class AdvancedCargoPlacement:
             # Convert itemId to string for consistency
             itemId_str = str(item.itemId)
             
-            # 1. Priority Score (40%) - simplify calculation
+            # 1. Priority Score (40%)
             priority_score = item.priority / 100
             
-            # 2. Expiry Score (25%) - use cached item data
-            expiry_score = 1.0
+            # 2. Mass Score (30%) - heavier items should be placed lower
+            mass_score = max(0.1, min(1.0, 1 - (item.mass / 1000)))  # Assuming max mass of 1000kg
             
-            item_data = self.items_dict.get(itemId_str, {})
-            if item_data and "expiryDate" in item_data and item_data["expiryDate"]:
-                try:
-                    expiry = datetime.strptime(str(item_data["expiryDate"]), "%d-%m-%y")
-                    current_date = datetime.now()
-                    days_until_expiry = (expiry - current_date).days
-                    # Simplified calculation
-                    expiry_score = max(0.1, min(1.0, 1 - (days_until_expiry / 100)))
-                except (ValueError, TypeError):
-                    pass
-            
-            # 3. Usage Score (25%) - use cached item data
-            usage_score = 0.5  # Default
-            dupe_item = self._dupe_cache.get(itemId_str, {})
-            if item_data and dupe_item and "usageLimit" in item_data and "usageLimit" in dupe_item:
-                try:
-                    current_usageLimit = float(item_data["usageLimit"])
-                    dupe_usageLimit = float(dupe_item["usageLimit"])
-                    if dupe_usageLimit > 0:
-                        usage_score = min(1.0, current_usageLimit / dupe_usageLimit)
-                except (ValueError, TypeError):
-                    pass
-            
-            # 4. Blockage Score (10%) - simplify calculation
+            # 3. Blockage Score (30%) - simplify calculation
             blockage_score = 0.9  # Default
             
             # Calculate weighted score
             final_score = (
                 0.4 * priority_score +
-                0.25 * expiry_score +
-                0.25 * usage_score +
-                0.1 * blockage_score
+                0.3 * mass_score +
+                0.3 * blockage_score
             )
             
             return round(final_score, 2)
@@ -458,6 +435,7 @@ class AdvancedCargoPlacement:
                 width=item.width,
                 depth=item.height,
                 height=item.depth,
+                mass=item.mass,
                 priority=item.priority,
                 itemId=item.itemId
             )
@@ -469,6 +447,7 @@ class AdvancedCargoPlacement:
                 width=item.height,
                 depth=item.depth,
                 height=item.width,
+                mass=item.mass,
                 priority=item.priority,
                 itemId=item.itemId
             )
@@ -480,6 +459,7 @@ class AdvancedCargoPlacement:
                 width=item.depth,
                 depth=item.width,
                 height=item.height,
+                mass=item.mass,
                 priority=item.priority,
                 itemId=item.itemId
             )
@@ -594,6 +574,7 @@ class AdvancedCargoPlacement:
                     width=existing_item['width'],
                     depth=existing_item['depth'],
                     height=existing_item['height'],
+                    mass=existing_item['mass'],
                     priority=existing_item['priority'],
                     itemId=existing_item['itemId']
                 )
@@ -622,11 +603,12 @@ class AdvancedCargoPlacement:
 
         # Store all items in items_dict for later reference
         for item in items:
-            itemId = str(item.get('itemId'))
+            itemId = str(item.get('itemId'))  # Ensure itemId is string
             self.items_dict[itemId] = {
                 'width': item.get('width', 0),
                 'depth': item.get('depth', 0),
                 'height': item.get('height', 0),
+                'mass': item.get('mass', 0),
                 'priority': item.get('priority', 0),
                 'itemId': itemId
             }
@@ -643,12 +625,13 @@ class AdvancedCargoPlacement:
         
         # First, try to place all items without rearrangement
         for item in sorted_items:
-            itemId = str(item.get('itemId'))
+            itemId = str(item.get('itemId'))  # Ensure itemId is string
             # Create ItemDimensions from input data
             item_dim = ItemDimensions(
                 width=item.get('width', 0),
                 depth=item.get('depth', 0),
                 height=item.get('height', 0),
+                mass=item.get('mass', 0),
                 priority=item.get('priority', 0),
                 itemId=itemId
             )
@@ -694,6 +677,7 @@ class AdvancedCargoPlacement:
                 width=item.get('width', 0),
                 depth=item.get('depth', 0),
                 height=item.get('height', 0),
+                mass=item.get('mass', 0),
                 priority=item.get('priority', 0),
                 itemId=itemId
             )

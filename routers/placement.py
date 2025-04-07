@@ -19,8 +19,6 @@ router = APIRouter(
 )
 
 
-    
-
 class Container(BaseModel):
     containerId: str
     zone: str
@@ -29,14 +27,13 @@ class Container(BaseModel):
     height: float
 
 class FrontendItem(BaseModel):
-    itemId: int = Field(..., description="Item identifier")
+    itemId: str = Field(..., description="Item identifier")
     name: str = Field(..., description="Item name")
     width: float = Field(..., description="Item width in cm")
     depth: float = Field(..., description="Item depth in cm")
     height: float = Field(..., description="Item height in cm")
+    mass: float = Field(..., description="Item mass in kg")
     priority: int = Field(..., description="Item priority")
-    expiryDate: str = Field(..., description="Expiry date in ISO format")
-    usageLimit: int = Field(..., description="Usage limit")
     preferredZone: str = Field(..., description="Preferred zone for placement")
 
 class FrontendPlacementInput(BaseModel):
@@ -71,14 +68,13 @@ def transform_input(input_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         
         # Create transformed item
         transformed_item = {
-            "itemId": int(item["itemId"]),
+            "itemId": str(item["itemId"]),
             "name": item["name"],
             "width": item["width"],
             "depth": item["depth"],
             "height": item["height"],
+            "mass": item["mass"],
             "priority": item["priority"],
-            "expiryDate": item["expiryDate"],
-            "usageLimit": item["usageLimit"],
             "preferredZone": item["preferredZone"],
             "position": position
         }
@@ -110,14 +106,13 @@ def transform_frontend_input(input_data: Dict[str, Any]) -> List[Dict[str, Any]]
         
         # Create transformed item
         transformed_item = {
-            "itemId": int(item["itemId"]),
+            "itemId": str(item["itemId"]),  # Ensure itemId is string
             "name": item["name"],
             "width": item["width"],
             "depth": item["depth"],
             "height": item["height"],
+            "mass": item["mass"],
             "priority": item["priority"],
-            "expiryDate": item["expiryDate"],
-            "usageLimit": item["usageLimit"],
             "preferredZone": item["preferredZone"],
             "position": position
         }

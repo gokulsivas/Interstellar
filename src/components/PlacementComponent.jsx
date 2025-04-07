@@ -17,14 +17,13 @@ const PlacementComponent = () => {
             // Format data to match FrontendPlacementInput schema
             const formattedInputData = {
                 items: inputData.items.map(item => ({
-                    itemId: parseInt(item.itemId),
+                    itemId: String(item.itemId),
                     name: item.name,
                     width: parseFloat(item.width),
                     depth: parseFloat(item.depth),
                     height: parseFloat(item.height),
+                    mass: parseFloat(item.mass),
                     priority: parseInt(item.priority),
-                    expiryDate: item.expiryDate || '',
-                    usageLimit: parseInt(item.usageLimit),
                     preferredZone: item.preferredZone
                 })),
                 containers: inputData.containers.map(container => ({
@@ -109,19 +108,18 @@ const PlacementComponent = () => {
       "width": 10,
       "depth": 10,
       "height": 10,
+      "mass": 5,
       "priority": 1,
-      "expiryDate": "",
-      "usageLimit": 1,
       "preferredZone": "A"
     }
   ],
   "containers": [
     {
-      "container_id": "C1",
+      "containerId": "C1",
       "zone": "A",
-      "width_cm": 100,
-      "depth_cm": 100,
-      "height_cm": 100
+      "width": 100,
+      "depth": 100,
+      "height": 100
     }
   ]
 }`}

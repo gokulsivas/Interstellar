@@ -127,14 +127,13 @@ class Container(BaseModel):
     height: float
 
 class ItemForPlacement(BaseModel):
-    itemId: int
+    itemId: str
     name: str
     width: float
     depth: float
     height: float
+    mass: float
     priority: int
-    expiryDate: str  # ISO format
-    usageLimit: int
     preferredZone: str  # Zone
 
 class PlacementRequest(BaseModel):

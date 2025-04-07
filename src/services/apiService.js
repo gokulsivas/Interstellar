@@ -7,24 +7,35 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Dashboard API
+export const getDashboardStats = async () => {
+  try {
+    const response = await api.get('/dashboard/stats');
+    console.log('Dashboard API Response:', response);
+    return response.data;
+  } catch (error) {
+    console.error('Dashboard API Error:', error);
+    throw error;
+  }
+};
+
 // Placement Recommendation API
 export const getPlacementRecommendations = async (data) => {
   try {
     // Ensure data matches FrontendPlacementInput schema
     const transformedData = {
       items: data.items.map(item => ({
-        itemId: parseInt(item.itemId),
+        itemId: String(item.itemId),
         name: item.name,
         width: parseFloat(item.width),
         depth: parseFloat(item.depth),
         height: parseFloat(item.height),
+        mass: parseFloat(item.mass),
         priority: parseInt(item.priority),
-        expiryDate: item.expiryDate || "",
-        usageLimit: parseInt(item.usageLimit),
         preferredZone: item.preferredZone
       })),
       containers: data.containers.map(container => ({
-        containerId: container.containerId || container.zone,
+        containerId: container.containerId,
         zone: container.zone,
         width: parseFloat(container.width),
         depth: parseFloat(container.depth),
@@ -291,12 +302,18 @@ export const getContainer3DData = async () => {
   }
 };
 
-export const getContainerItems = async () => {
+export const getContainerItems = async (containerId) => {
   try {
-    const response = await api.get('/container/items');
+    const params = {};
+    if (containerId) {
+      params.containerId = containerId;
+    }
+    
+    const response = await api.get('/visualization/containers', { params });
+    console.log('Visualization API Response:', response.data);
     return response;
   } catch (error) {
-    console.error('Error fetching container items:', error);
+    console.error('Visualization API Error:', error.response?.data || error);
     throw error;
   }
 };
