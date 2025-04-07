@@ -88,26 +88,18 @@ async def simulate_day(request: TimeSimulationRequest):
             
             # Process daily item usage
             for item_usage in request.itemsToBeUsedPerDay:
-                print(f"\nProcessing item usage: {item_usage}")
                 filter_expr = []
                 if item_usage.itemId is not None:
-                    print(f"Looking for itemId: {item_usage.itemId} (type: {type(item_usage.itemId)})")
-                    # Convert both to string for comparison to handle both string and integer IDs
                     filter_expr.append(pl.col("itemId").cast(str) == str(item_usage.itemId))
                 if item_usage.name and item_usage.name.strip():
-                    print(f"Looking for name: {item_usage.name}")
                     filter_expr.append(pl.col("name") == item_usage.name)
                 
                 if not filter_expr:
-                    print("No filter expressions created")
                     continue
                 
-                print(f"Filter expressions: {filter_expr}")
                 matching_items = items_df.filter(pl.any_horizontal(filter_expr))
-                print(f"Found {len(matching_items)} matching items")
                 
                 for item in matching_items.to_dicts():
-                    print(f"Processing matching item: {item}")
                     current_uses = int(item["usageLimit"])
                     new_uses = max(0, current_uses - 1)
                     
@@ -118,11 +110,13 @@ async def simulate_day(request: TimeSimulationRequest):
                         .alias("usageLimit")
                     ])
                     
-                    items_used.append({
-                        "itemId": int(item["itemId"]),
-                        "name": str(item["name"]),
-                        "remainingUses": new_uses
-                    })
+                    # Only store the final state of each item
+                    if day == days_to_simulate - 1:
+                        items_used.append({
+                            "itemId": int(item["itemId"]),
+                            "name": str(item["name"]),
+                            "remainingUses": new_uses
+                        })
                     
                     if current_uses > 0 and new_uses == 0:
                         items_depleted_today.append({
